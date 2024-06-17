@@ -1,4 +1,5 @@
 const std = @import("std");
+const Util = @import("util.zig");
 const GBcpu = @import("cpu.zig").GBcpu;
 const GBbus = @import("bus.zig").GBbus;
 
@@ -27,10 +28,11 @@ pub fn main() !void {
 
     //main loop
     while (true) {
-        std.log.info("PC: {x} HL: {x}", .{ gbcpu.getPC(), gbcpu.getHL() });
         try gbcpu.execute();
-    }
 
-    try stdout.print("damn\n", .{});
-    //stdout.flush();
+        if (gbcpu.PC > 0x00FE) {
+            std.debug.print("Boot rom end\n", .{});
+            break;
+        }
+    }
 }

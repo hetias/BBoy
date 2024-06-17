@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const GBbus = struct {
     memory: []u8,
 
@@ -22,5 +24,12 @@ pub const GBbus = struct {
 
     pub fn readWord(self: GBbus, addr: u16) u16 {
         return (@as(u16, self.memory[addr]) | @as(u16, self.memory[addr + 1]) << 8);
+    }
+
+    pub fn show_stack(self: GBbus, top: u16) void {
+        for (self.memory[top..0xFFFE]) |byte| {
+            std.debug.print("{x} ", .{byte});
+        }
+        std.debug.print("\n", .{});
     }
 };

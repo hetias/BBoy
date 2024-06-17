@@ -10,7 +10,15 @@ pub const Byte = struct {
         return (@truncate(byte));
     }
 
+    pub fn set_bit(byte: *u8, bit: u3) void {
+        byte.* = (byte.* | (@as(u8, 1) << bit));
+    }
+
+    pub fn reset_bit(byte: *u8, bit: u3) void {
+        byte.* = byte.* & ~(@as(u8, 1) << bit);
+    }
+
     pub fn check_bit(byte: u8, bit: u3) bool {
-        return ((byte >> bit) & 1) > 0;
+        return ((byte >> bit) & @as(u8, 1)) > 0;
     }
 };
