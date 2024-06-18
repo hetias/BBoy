@@ -5,9 +5,9 @@ const GBbus = @import("bus.zig").GBbus;
 
 pub fn main() !void {
     //stdout
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    //const stdout_file = std.io.getStdOut().writer();
+    //var bw = std.io.bufferedWriter(stdout_file);
+    //const stdout = bw.writer();
 
     //allocator
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -29,6 +29,8 @@ pub fn main() !void {
     //main loop
     while (true) {
         try gbcpu.execute();
+
+        std.debug.print("PC: {x}\n", .{gbcpu.PC});
 
         if (gbcpu.PC > 0x00FE) {
             std.debug.print("Boot rom end\n", .{});

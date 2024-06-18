@@ -72,7 +72,7 @@ pub const GBcpu = struct {
                 self.ld_imm8(&self.B);
             },
             0x0D => {
-                self.inc_reg8(&self.D);
+                self.dec_reg8(&self.C);
             },
             0x11 => {
                 self.ld_imm16(&self.D, &self.E);
@@ -122,6 +122,9 @@ pub const GBcpu = struct {
             0x28 => {
                 self.jr_z();
             },
+            0x2E => {
+                self.ld_imm8(&self.L);
+            },
             0x31 => {
                 //ld sp, d16
                 self.ld_sp_imm();
@@ -158,6 +161,9 @@ pub const GBcpu = struct {
             0xAF => {
                 //xor a
                 self.xor(&self.A);
+            },
+            0xBE => {
+                self.cp_mem(&self.H, &self.L);
             },
             0x0C => {
                 self.inc_reg8(&self.C);
@@ -364,6 +370,24 @@ pub const GBcpu = struct {
         }
 
         self.PC += 1;
+    }
+
+    fn cp_mem(self: *GBcpu, high: *u8, low: *u8) void {
+        self.PC += 1;
+        const val = self.read(Util.Byte.make_word(high.*, low.*));
+
+        if ((self.A - val) == 0) {
+            self.set_zero();
+        } else {
+            self.reset_zero();
+        }
+
+        self.set_sub();
+        if (self.A < val) {
+            self.set_carry();
+        } else {
+            self.reset_carry();
+        }
     }
 
     fn pop(self: *GBcpu, high: *u8, low: *u8) void {
