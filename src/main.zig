@@ -23,14 +23,33 @@ pub fn main() !void {
     _ = try rom_file.readAll(ram);
     rom_file.close();
 
+    //game rom
+    const game_file = try std.fs.cwd().openFile("tetris.gb", .{});
+    try game_file.seekTo(0x100);
+
+    //write rom to ram
+    _ = try game_file.readAll(ram[0x100..]);
+    game_file.close();
+
     const gbbus = GBbus.init(ram);
     var gbcpu = GBcpu.init(&gbbus);
 
+    const game_title = ram[0x134..0x143];
+    const nintendo_logo_cart = ram[0x104..0x134];
+    const nintendo_logo_rom = ram[0xA8..0xD8];
+    std.debug.print("title: {s}\n\n", .{game_title});
+    std.debug.print("nintendo_logo_rom: {x}\n\n", .{nintendo_logo_rom});
+    std.debug.print("nintendo_logo_cart: {x}\n\n", .{nintendo_logo_cart});
+
+    //FIX ME:: This is a work around while we don't have a PPU
+    //this is the scan line register. Puttin 90 means "we are in a
+    //new frame"
+    ram[0xFF44] = 0x90;
+
     //main loop
     while (true) {
-        try gbcpu.execute();
-
         std.debug.print("PC: {x}\n", .{gbcpu.PC});
+        try gbcpu.execute();
 
         if (gbcpu.PC > 0x00FE) {
             std.debug.print("Boot rom end\n", .{});

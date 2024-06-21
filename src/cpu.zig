@@ -148,12 +148,18 @@ pub const GBcpu = struct {
             0x77 => {
                 self.st_reg(self.getHL(), &self.A);
             },
+            0x78 => {
+                self.mov_reg(&self.A, &self.B);
+            },
             0x7B => {
                 self.mov_reg(&self.A, &self.E);
                 //self.ld_reg_reg(&self.A, &self.E);
             },
             0x7C => {
                 self.mov_reg(&self.A, &self.H);
+            },
+            0x86 => {
+                self.add_HL(&self.A);
             },
             0x90 => {
                 self.sub(&self.B);
@@ -192,6 +198,9 @@ pub const GBcpu = struct {
             0xC1 => {
                 self.pop(&self.B, &self.C);
             },
+            0xC3 => {
+                self.jp_imm16();
+            },
             0xC5 => {
                 self.push(&self.B, &self.C);
             },
@@ -206,7 +215,10 @@ pub const GBcpu = struct {
                         self.check_bit(self.H, 7);
                     },
                     else => {
-                        std.debug.print("unknown CBOP: {x}\n", .{cb_op});
+                        std.debug.print("unknown CB OP: {x}\n", .{cb_op});
+                        self.show_state();
+
+                        return CPUerror.UnknownOperation;
                     },
                 }
             },
@@ -216,18 +228,22 @@ pub const GBcpu = struct {
             0xC9 => {
                 self.ret();
             },
+            0x7D => {
+                self.mov_reg(&self.A, &self.L);
+            },
             else => {
                 std.debug.print("unknown op: {x}\n", .{opcode});
+                self.show_state();
                 return CPUerror.UnknownOperation;
             },
         }
     }
 
     pub fn show_state(self: *GBcpu) void {
-        std.debug.print("AF: {x}.{x} | {b:0>8}.{b:0>8}\n", .{ self.A, self.F, self.A, self.F });
-        std.debug.print("BC: {x}.{x} | {b:0>8}.{b:0>8}\n", .{ self.B, self.C, self.B, self.C });
-        std.debug.print("DE: {x}.{x} | {b:0>8}.{b:0>8}\n", .{ self.D, self.E, self.D, self.E });
-        std.debug.print("HL: {x}.{x} | {b:0>8}.{b:0>8}\n", .{ self.H, self.L, self.H, self.L });
+        std.debug.print("AF: {x}.{x} | {b:0>8}.{b:0>8} | {x}\n", .{ self.A, self.F, self.A, self.F, Util.Byte.make_word(self.A, self.F) });
+        std.debug.print("BC: {x}.{x} | {b:0>8}.{b:0>8} | {x}\n", .{ self.B, self.C, self.B, self.C, Util.Byte.make_word(self.B, self.C) });
+        std.debug.print("DE: {x}.{x} | {b:0>8}.{b:0>8} | {x}\n", .{ self.D, self.E, self.D, self.E, Util.Byte.make_word(self.D, self.E) });
+        std.debug.print("HL: {x}.{x} | {b:0>8}.{b:0>8} | {x}\n", .{ self.H, self.L, self.H, self.L, Util.Byte.make_word(self.H, self.L) });
 
         std.debug.print("PC: {x}\n", .{self.PC});
         std.debug.print("SP: {x}\n", .{self.SP});
@@ -235,19 +251,19 @@ pub const GBcpu = struct {
     }
 
     pub fn getAF(self: *GBcpu) u16 {
-        return @as(u16, self.F) | (@as(u16, self.A) << 8);
+        return Util.Byte.make_word(self.A, self.F);
     }
 
     pub fn getBC(self: *GBcpu) u16 {
-        return @as(u16, self.C) | (@as(u16, self.B) << 8);
+        return Util.Byte.make_word(self.B, self.C);
     }
 
     pub fn getDE(self: *GBcpu) u16 {
-        return @as(u16, self.D) | (@as(u16, self.E) << 8);
+        return Util.Byte.make_word(self.D, self.E);
     }
 
     pub fn getHL(self: *GBcpu) u16 {
-        return @as(u16, self.L) | (@as(u16, self.H) << 8);
+        return Util.Byte.make_word(self.H, self.L);
     }
 
     pub fn getSP(self: *GBcpu) u16 {
@@ -268,27 +284,33 @@ pub const GBcpu = struct {
     }
 
     fn set_sub(self: *GBcpu) void {
-        self.F |= 0x80;
+        Util.Byte.set_bit(&self.F, 6);
+        //self.F |= 0x80;
     }
 
     fn reset_sub(self: *GBcpu) void {
-        self.F ^= 0x80;
+        Util.Byte.reset_bit(&self.F, 6);
+        //self.F ^= 0x80;
     }
 
     fn set_hcarry(self: *GBcpu) void {
-        self.F |= 0x40;
+        Util.Byte.set_bit(&self.F, 5);
+        //self.F |= 0x40;
     }
 
     fn reset_hcarry(self: *GBcpu) void {
-        self.F ^= 0x40;
+        Util.Byte.reset_bit(&self.F, 5);
+        //self.F ^= 0x40;
     }
 
     fn set_carry(self: *GBcpu) void {
-        self.F ^= 0x20;
+        Util.Byte.set_bit(&self.F, 4);
+        //self.F ^= 0x20;
     }
 
     fn reset_carry(self: *GBcpu) void {
-        self.F &= 0x20;
+        Util.Byte.reset_bit(&self.F, 4);
+        //self.F &= 0x20;
     }
 
     //actual operations
@@ -343,6 +365,11 @@ pub const GBcpu = struct {
         @compileError("DEC_REG16 UNIMPLEMENTED");
     }
 
+    fn add_HL(self: *GBcpu, reg: *u8) void {
+        self.PC += 1;
+        reg.* = self.read(Util.Byte.make_word(self.H, self.L));
+    }
+
     fn sub(self: *GBcpu, reg: *u8) void {
         //TODO:: should modify H flag
         self.PC += 1;
@@ -376,18 +403,18 @@ pub const GBcpu = struct {
         self.PC += 1;
         const val = self.read(Util.Byte.make_word(high.*, low.*));
 
-        if ((self.A - val) == 0) {
+        self.set_sub();
+        if (@subWithOverflow(self.A, val)[0] == 0) {
             self.set_zero();
         } else {
             self.reset_zero();
         }
 
-        self.set_sub();
-        if (self.A < val) {
-            self.set_carry();
-        } else {
-            self.reset_carry();
-        }
+        //if (self.A < val) {
+        //self.set_carry();
+        //} else {
+        //self.reset_carry();
+        //}
     }
 
     fn pop(self: *GBcpu, high: *u8, low: *u8) void {
@@ -462,6 +489,7 @@ pub const GBcpu = struct {
     fn ld_reg_mem(self: *GBcpu, addr: u16, reg: *u8) void {
         self.PC += 1;
         reg.* = self.read(addr);
+        //std.debug.print("Loaded {x} from address {x}\n", .{ reg.*, addr });
     }
 
     fn ld_imm8(self: *GBcpu, reg: *u8) void {
@@ -504,12 +532,13 @@ pub const GBcpu = struct {
 
     fn check_bit(self: *GBcpu, reg: u8, bit: u3) void {
         self.PC += 1;
-        if (Util.Byte.check_bit(reg, bit)) {
+
+        self.reset_sub();
+        if (!Util.Byte.check_bit(reg, bit)) {
             self.set_zero();
         } else {
             self.reset_zero();
         }
-        self.reset_sub();
         //self.set_hcarry();
     }
 
@@ -532,6 +561,13 @@ pub const GBcpu = struct {
         } else {
             self.reset_zero();
         }
+    }
+
+    fn jp_imm16(self: *GBcpu) void {
+        self.PC += 1;
+        const imm = self.readWord(self.PC);
+
+        self.PC = imm;
     }
 
     fn jr_imm8(self: *GBcpu) void {
