@@ -19,27 +19,23 @@ pub fn main() !void {
     defer allocator.free(ram);
 
     //boot rom
+    var bios_rom: [0x100]u8 = undefined;
     const rom_file = try std.fs.cwd().openFile("boot.gb", .{});
-    _ = try rom_file.readAll(ram);
+    _ = try rom_file.readAll(&bios_rom);
     rom_file.close();
 
     //game rom
-    const game_file = try std.fs.cwd().openFile("tetris.gb", .{});
+    const game_file = try std.fs.cwd().openFile("zelda.gb", .{});
     try game_file.seekTo(0x100);
 
     //write rom to ram
     _ = try game_file.readAll(ram[0x100..]);
     game_file.close();
 
-    const gbbus = GBbus.init(ram);
+    const gbbus = GBbus.init(ram, bios_rom[0..]);
     var gbcpu = GBcpu.init(&gbbus);
 
     const game_title = ram[0x134..0x143];
-    const nintendo_logo_cart = ram[0x104..0x134];
-    const nintendo_logo_rom = ram[0xA8..0xD8];
-    std.debug.print("title: {s}\n\n", .{game_title});
-    std.debug.print("nintendo_logo_rom: {x}\n\n", .{nintendo_logo_rom});
-    std.debug.print("nintendo_logo_cart: {x}\n\n", .{nintendo_logo_cart});
 
     //FIX ME:: This is a work around while we don't have a PPU
     //this is the scan line register. Puttin 90 means "we are in a
@@ -50,6 +46,8 @@ pub fn main() !void {
     while (true) {
         std.debug.print("PC: {x}\n", .{gbcpu.PC});
         try gbcpu.execute();
+        //try gbcpu.check_interrupts();
+        //gbcpu.show_state();
 
         if (gbcpu.PC > 0x00FE) {
             std.debug.print("Boot rom end\n", .{});

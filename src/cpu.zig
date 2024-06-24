@@ -20,6 +20,8 @@ pub const GBcpu = struct {
     SP: u16,
     PC: u16,
 
+    IME: u8,
+
     //bus
     bus: *const GBbus = undefined,
 
@@ -36,6 +38,7 @@ pub const GBcpu = struct {
             .SP = 0,
             .PC = 0,
             .bus = bus,
+            .IME = 0,
         };
     }
 
@@ -236,6 +239,41 @@ pub const GBcpu = struct {
                 self.show_state();
                 return CPUerror.UnknownOperation;
             },
+        }
+    }
+
+    pub fn check_interrupts(self: *GBcpu) void {
+        const IE = self.read(0xFFFF);
+        const IF = self.read(0xFF0F);
+
+        //if {interrupt} is enabled
+        //if {interrupt} is requested and interrupts are enabled
+        //execute interrupt handler
+        //fi
+        //else try next interrupt
+        //...
+
+        if (Util.Byte.check_bit(IE, 0)) {
+            if (Util.Byte.check_bit(IF, 0) and self.IME != 0) {
+                //execute vblank handler
+            }
+        } else if (Util.Byte.check_bit(IE, 1)) {
+            if (Util.Byte.check_bit(IF, 1)) {
+                //execute LCD handler
+            }
+        } else if (Util.Byte.check_bit(IE, 2)) {
+            if (Util.Byte.check_bit(IF, 2)) {
+                //execute timer handler
+            }
+        } else if (Util.Byte.check_bit(IE, 3)) {
+            //serial
+            if (Util.Byte.check_bit(IF, 3)) {
+                //execute serial handler
+            }
+        } else if (Util.Byte.check_bit(IE, 4)) {
+            if (Util.Byte.check_bit(IF, 4)) {
+                //execute joypad handler
+            }
         }
     }
 
